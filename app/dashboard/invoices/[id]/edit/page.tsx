@@ -1,10 +1,9 @@
 import { notFound } from 'next/navigation';
-import { sql } from '@vercel/postgres';
 import Breadcrumbs from '@/app/ui/invoices/breadcrumbs';
 import Form from '@/app/ui/invoices/edit-form';
 import { fetchInvoiceById, fetchCustomers } from '@/app/lib/data';
 
-export default async function EditInvoicePage({
+export default async function Page({
   params,
 }: {
   params: { id: string };
@@ -12,21 +11,10 @@ export default async function EditInvoicePage({
   const id = params.id;
 
   // Fetch invoice and customers concurrently
-  const [invoiceResult, customersResult] = await Promise.all([
-    sql`
-      SELECT id, customer_id, amount, status
-      FROM invoices
-      WHERE id = ${id}
-    `,
-    sql`
-      SELECT id, name
-      FROM customers
-      ORDER BY name ASC
-    `,
+  const [invoice, customers] = await Promise.all([
+    fetchInvoiceById(id),
+    fetchCustomers(),
   ]);
-
-  const invoice = invoiceResult.rows[0];
-  const customers = customersResult.rows;
 
   if (!invoice) {
     notFound();
@@ -44,7 +32,7 @@ export default async function EditInvoicePage({
           },
         ]}
       />
-    
+      <Form invoice={invoice} customers={customers} />
     </main>
   );
 }
