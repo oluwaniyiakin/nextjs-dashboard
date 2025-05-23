@@ -1,4 +1,6 @@
-import Pagination from '@/app/ui/invoices/pagination';
+// app/dashboard/invoices/page.tsx
+
+import Pagination from '@/app/ui/invoices/pagination'; 
 import Search from '@/app/ui/search';
 import Table from '@/app/ui/invoices/table';
 import { CreateInvoice } from '@/app/ui/invoices/buttons';
@@ -7,16 +9,16 @@ import { InvoicesTableSkeleton } from '@/app/ui/skeletons';
 import { Suspense } from 'react';
 import { fetchInvoicesPages } from '@/app/lib/data';
 
-// ✅ Fix: Proper type for Page props (not a promise)
-export default async function Page({
-  searchParams,
-}: {
+// ✅ Define props type for searchParams
+interface PageProps {
   searchParams?: {
     query?: string;
     page?: string;
   };
-}) {
-  const query = searchParams?.query || '';
+}
+
+export default async function Page({ searchParams }: PageProps) {
+  const query = searchParams?.query ?? '';
   const currentPage = Number(searchParams?.page) || 1;
 
   const totalPages = await fetchInvoicesPages(query);
@@ -32,10 +34,7 @@ export default async function Page({
         <CreateInvoice />
       </div>
 
-      <Suspense
-        key={query + currentPage}
-        fallback={<InvoicesTableSkeleton />}
-      >
+      <Suspense key={query + currentPage} fallback={<InvoicesTableSkeleton />}>
         <Table query={query} currentPage={currentPage} />
       </Suspense>
 
@@ -45,3 +44,4 @@ export default async function Page({
     </div>
   );
 }
+
