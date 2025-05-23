@@ -1,13 +1,9 @@
-import { notFound } from 'next/navigation';
+import { notFound } from 'next/navigation'; 
 import { sql } from '@vercel/postgres';
 import Breadcrumbs from '@/app/ui/invoices/breadcrumbs';
 import Form from '@/app/ui/invoices/edit-form';
 
-export default async function EditInvoicePage({
-  params,
-}: {
-  params: { id: string };
-}) {
+export default async function EditInvoicePage({ params }) {
   const id = params.id;
 
   // Fetch invoice and customers concurrently
@@ -44,8 +40,7 @@ export default async function EditInvoicePage({
           },
         ]}
       />
-
-      
+      <Form invoice={invoice} customers={customers} />
     </main>
   );
 }
