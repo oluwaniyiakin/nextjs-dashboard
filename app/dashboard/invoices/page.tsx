@@ -7,15 +7,15 @@ import { InvoicesTableSkeleton } from '@/app/ui/skeletons';
 import { Suspense } from 'react';
 import { fetchInvoicesPages } from '@/app/lib/data';
 
-
-interface SearchParams {
+// ✅ Fix: Proper type for Page props (not a promise)
+export default async function Page({
+  searchParams,
+}: {
   searchParams?: {
     query?: string;
     page?: string;
   };
-}
-
-export default async function Page({ searchParams }: SearchParams) {
+}) {
   const query = searchParams?.query || '';
   const currentPage = Number(searchParams?.page) || 1;
 
