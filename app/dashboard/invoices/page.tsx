@@ -1,6 +1,4 @@
-// app/dashboard/invoices/page.tsx
-
-import Pagination from '@/app/ui/invoices/pagination'; 
+import Pagination from '@/app/ui/invoices/pagination';
 import Search from '@/app/ui/search';
 import Table from '@/app/ui/invoices/table';
 import { CreateInvoice } from '@/app/ui/invoices/buttons';
@@ -9,17 +7,16 @@ import { InvoicesTableSkeleton } from '@/app/ui/skeletons';
 import { Suspense } from 'react';
 import { fetchInvoicesPages } from '@/app/lib/data';
 
-// ✅ Define props type for searchParams
-interface PageProps {
-  searchParams?: {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{
     query?: string;
     page?: string;
-  };
-}
-
-export default async function Page({ searchParams }: PageProps) {
-  const query = searchParams?.query ?? '';
-  const currentPage = Number(searchParams?.page) || 1;
+  }>;
+}) {
+  const { query = '', page = '1' } = await searchParams;
+  const currentPage = Number(page);
 
   const totalPages = await fetchInvoicesPages(query);
 
@@ -34,7 +31,10 @@ export default async function Page({ searchParams }: PageProps) {
         <CreateInvoice />
       </div>
 
-      <Suspense key={query + currentPage} fallback={<InvoicesTableSkeleton />}>
+      <Suspense
+        key={query + currentPage}
+        fallback={<InvoicesTableSkeleton />}
+      >
         <Table query={query} currentPage={currentPage} />
       </Suspense>
 
@@ -44,4 +44,3 @@ export default async function Page({ searchParams }: PageProps) {
     </div>
   );
 }
-
