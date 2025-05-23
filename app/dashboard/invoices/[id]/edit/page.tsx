@@ -1,9 +1,14 @@
-import { notFound } from 'next/navigation'; 
+import { notFound } from 'next/navigation';
 import { sql } from '@vercel/postgres';
 import Breadcrumbs from '@/app/ui/invoices/breadcrumbs';
 import Form from '@/app/ui/invoices/edit-form';
+import { fetchInvoiceById, fetchCustomers } from '@/app/lib/data';
 
-export default async function EditInvoicePage({ params }) {
+export default async function EditInvoicePage({
+  params,
+}: {
+  params: { id: string };
+}) {
   const id = params.id;
 
   // Fetch invoice and customers concurrently
@@ -23,7 +28,6 @@ export default async function EditInvoicePage({ params }) {
   const invoice = invoiceResult.rows[0];
   const customers = customersResult.rows;
 
-  // If invoice not found, trigger 404 page
   if (!invoice) {
     notFound();
   }
@@ -40,7 +44,7 @@ export default async function EditInvoicePage({ params }) {
           },
         ]}
       />
-      <Form invoice={invoice} customers={customers} />
+    
     </main>
   );
 }
