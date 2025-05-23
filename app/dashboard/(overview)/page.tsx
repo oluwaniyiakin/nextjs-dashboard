@@ -8,6 +8,9 @@ import {fetchLatestInvoices, fetchCardData } from '@/app/lib/data';
 import { Suspense } from 'react';
 import { RevenueChartSkeleton } from '@/app/ui/skeletons';
 
+export const dynamic = 'force-dynamic';
+
+
 export default async function Page() {
   // Fetch all data in parallel
   const [latestInvoices, cardData] = await Promise.all([
