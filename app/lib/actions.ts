@@ -5,63 +5,115 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import postgres from 'postgres';
 
+import { signIn } from '@/auth';
+import { AuthError } from 'next-auth';
+ 
 // Set up Postgres connection
 const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' });
 
+// ...
+ 
+export async function authenticate(
+  prevState: string | undefined,
+  formData: FormData,
+) {
+  try {
+    await signIn('credentials', formData);
+  } catch (error) {
+    if (error instanceof AuthError) {
+      switch (error.type) {
+        case 'CredentialsSignin':
+          return 'Invalid credentials.';
+        default:
+          return 'Something went wrong.';
+      }
+    }
+    throw error;
+  }
+}
+
 /**
- * Validation Schema for invoices
+ * Form state type for form actions
+ */
+type FormState = {
+  message: string | null;
+  errors?: {
+    customerId?: string;
+    amount?: string;
+    status?: string;
+  };
+};
+
+/**
+ * Zod validation schema for full invoice shape
  */
 const FormSchema = z.object({
   id: z.string(),
-  customerId: z.string(),
-  amount: z.coerce.number(),
+  customerId: z.string().min(1, { message: 'Customer is required' }),
+  amount: z.coerce.number().gt(0, { message: 'Amount must be greater than 0' }),
   status: z.enum(['pending', 'paid']),
   date: z.string(),
 });
 
-// Schema for creating an invoice (no id or date needed)
-const CreateInvoice = FormSchema.omit({ id: true, date: true });
-
-// Schema for updating an invoice (id is required, no date)
-const UpdateInvoice = FormSchema.omit({ date: true });
+/**
+ * Validation schemas for create/update
+ */
+const CreateInvoiceSchema = FormSchema.omit({ id: true, date: true });
+const UpdateInvoiceSchema = FormSchema.omit({ date: true });
 
 /**
- * Server Action: createInvoice
+ * Server Action: Create Invoice
  */
-export async function createInvoice(formData: FormData) {
+export async function createInvoice(
+  prevState: FormState,
+  formData: FormData
+): Promise<FormState> {
   try {
-    const { customerId, amount, status } = CreateInvoice.parse({
+    const validated = CreateInvoiceSchema.parse({
       customerId: formData.get('customerId'),
       amount: formData.get('amount'),
       status: formData.get('status'),
     });
 
-    const amountInCents = amount * 100;
+    const amountInCents = validated.amount * 100;
     const date = new Date().toISOString().split('T')[0];
 
     await sql`
       INSERT INTO invoices (customer_id, amount, status, date)
-      VALUES (${customerId}, ${amountInCents}, ${status}, ${date})
+      VALUES (${validated.customerId}, ${amountInCents}, ${validated.status}, ${date})
     `;
-  } catch (error) {
-    console.error('Failed to create invoice:', error);
-    throw error;
-  }
 
-  // redirect throws an internal error to trigger navigation, so call it after try/catch
-  revalidatePath('/dashboard/invoices');
-  redirect('/dashboard/invoices');
+    revalidatePath('/dashboard/invoices');
+    redirect('/dashboard/invoices');
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      const fieldErrors = err.flatten().fieldErrors;
+      return {
+        message: 'Validation failed. Please correct the fields below.',
+        errors: {
+          customerId: fieldErrors.customerId?.[0],
+          amount: fieldErrors.amount?.[0],
+          status: fieldErrors.status?.[0],
+        },
+      };
+    }
+
+    console.error('Unexpected error creating invoice:', err);
+    return {
+      message: 'Something went wrong. Please try again.',
+    };
+  }
 }
 
 /**
- * Server Action: deleteInvoice
+ * Server Action: Delete Invoice
  */
 export async function deleteInvoice(id: string) {
   try {
     await sql`DELETE FROM invoices WHERE id = ${id}`;
-  } catch (error) {
-    console.error('Failed to delete invoice:', error);
-    throw error;
+  } catch (err) {
+    console.error('Failed to delete invoice:', err);
+    throw err;
   }
 
   revalidatePath('/dashboard/invoices');
@@ -69,31 +121,48 @@ export async function deleteInvoice(id: string) {
 }
 
 /**
- * Server Action: updateInvoice
+ * Server Action: Update Invoice
  */
-export async function updateInvoice(formData: FormData) {
+export async function updateInvoice(
+  prevState: FormState,
+  formData: FormData
+): Promise<FormState> {
   try {
-    const { id, customerId, amount, status } = UpdateInvoice.parse({
+    const validated = UpdateInvoiceSchema.parse({
       id: formData.get('id'),
       customerId: formData.get('customerId'),
       amount: formData.get('amount'),
       status: formData.get('status'),
     });
 
-    const amountInCents = amount * 100;
+    const amountInCents = validated.amount * 100;
 
     await sql`
       UPDATE invoices
-      SET customer_id = ${customerId},
+      SET customer_id = ${validated.customerId},
           amount = ${amountInCents},
-          status = ${status}
-      WHERE id = ${id}
+          status = ${validated.status}
+      WHERE id = ${validated.id}
     `;
-  } catch (error) {
-    console.error('Failed to update invoice:', error);
-    throw error;
-  }
 
-  revalidatePath('/dashboard/invoices');
-  redirect('/dashboard/invoices');
+    revalidatePath('/dashboard/invoices');
+    redirect('/dashboard/invoices');
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      const fieldErrors = err.flatten().fieldErrors;
+      return {
+        message: 'Validation failed. Please correct the fields below.',
+        errors: {
+          customerId: fieldErrors.customerId?.[0],
+          amount: fieldErrors.amount?.[0],
+          status: fieldErrors.status?.[0],
+        },
+      };
+    }
+
+    console.error('Unexpected error updating invoice:', err);
+    return {
+      message: 'Something went wrong. Please try again.',
+    };
+  }
 }
